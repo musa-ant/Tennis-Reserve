@@ -1,0 +1,10 @@
+# Credentials never go in the repo
+.tennis_creds
+*.creds
+.env
+
+# Logs / runtime
+*.log
+__pycache__/
+*.pyc
+.DS_Store
