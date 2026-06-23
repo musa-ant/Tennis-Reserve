@@ -10,6 +10,9 @@ Conventions:
   - `submit()` returns the raw `requests.Response`; HTTP 200 means RIOC accepted
     the permit. (Verified empirically 2026-05-26: 200 = visible in My Permits.)
   - Times are naive datetimes in America/New_York wall-clock — RIOC expects that.
+  - **Weekly cap: 2 permits per user.** Once you have 2 active permits, every
+    further submit returns HTTP 400 "Bad Request" regardless of court or time.
+    Confirmed in both API and browser UI on 2026-05-26.
 
 Credentials come from ~/.tennis_creds (chmod 600), format:
     RIOC_USER=you@example.com

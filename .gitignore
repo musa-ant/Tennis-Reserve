@@ -8,3 +8,6 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Legacy/diagnostic scratch files — kept locally for reference, not shipped
+legacy/

@@ -53,28 +53,28 @@ to land.
 Option B — **macOS launchd** (laptop must be awake at 8 AM):
 
 ```xml
-<!-- ~/Library/LaunchAgents/com.musa.tennis.plist -->
+<!-- ~/Library/LaunchAgents/com.example.tennis.plist -->
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>com.musa.tennis</string>
+  <key>Label</key><string>com.example.tennis</string>
   <key>ProgramArguments</key><array>
     <string>/usr/bin/python3</string>
-    <string>/Users/musa/public_sandbox/tennis/tennis_cron.py</string>
+    <string>/path/to/tennis/tennis_cron.py</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/musa/public_sandbox/tennis</string>
+  <key>WorkingDirectory</key><string>/path/to/tennis</string>
   <key>StartCalendarInterval</key><dict>
     <key>Hour</key><integer>8</integer>
     <key>Minute</key><integer>5</integer>
   </dict>
-  <key>StandardOutPath</key><string>/Users/musa/Library/Logs/tennis_cron.stdout.log</string>
-  <key>StandardErrorPath</key><string>/Users/musa/Library/Logs/tennis_cron.stderr.log</string>
+  <key>StandardOutPath</key><string>~/Library/Logs/tennis_cron.stdout.log</string>
+  <key>StandardErrorPath</key><string>~/Library/Logs/tennis_cron.stderr.log</string>
 </dict></plist>
 ```
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.musa.tennis.plist
+launchctl load ~/Library/LaunchAgents/com.example.tennis.plist
 ```
 
 ## Mode 2: `/tennis` skill
