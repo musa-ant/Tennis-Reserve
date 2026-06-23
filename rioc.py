@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 import sys
 from dataclasses import dataclass
@@ -45,9 +46,19 @@ COURTS: dict[int, str] = {
 # Permit-request question answers. IDs were captured 2026-05-26 from a
 # successful booking; if RIOC changes the form these will need re-capture
 # (look at a working POST body in DevTools).
-RESPONSES = [
-    {"Id": "11e79e5d3daf4712b9e6418d2691b976", "StringValue": "Tennis with friends", "CheckboxValue": []},
-    {"Id": "af8966101be44676b4ee564b052e1e87", "StringValue": "4",    "CheckboxValue": []},
+#
+# The free-text purpose field and the player count are generated fresh on every
+# submission (see build_responses) so repeated bookings don't post byte-identical
+# text — identical descriptions every time can look automated to the backend.
+# The remaining answers are factual Yes/No/None and stay fixed; randomizing
+# those would submit wrong information.
+
+PURPOSE_FIELD_ID = "11e79e5d3daf4712b9e6418d2691b976"  # free text: what's the activity
+PLAYERS_FIELD_ID = "af8966101be44676b4ee564b052e1e87"  # number of players
+
+# Fixed, factual answers (everything except purpose + player count), in the
+# same order RIOC's form posts them.
+_FIXED_RESPONSES = [
     {"Id": "f28f0dbea8b5438495778b0bb0ddcd93", "StringValue": "No",   "CheckboxValue": []},
     {"Id": "d46cb434558845fb9e0318ab6832e427", "StringValue": "No",   "CheckboxValue": []},
     {"Id": "1221940f5cca4abdb5288cfcbe284820", "StringValue": "",     "CheckboxValue": []},
@@ -57,6 +68,55 @@ RESPONSES = [
     {"Id": "06b3f73192a84fd6b88758e56a64c3ad", "StringValue": "No",   "CheckboxValue": []},
     {"Id": "a31f4297075e4dab8c0ef154f2b9b1c1", "StringValue": "None", "CheckboxValue": []},
 ]
+
+# Natural-language purpose lines. Each reads as a real person describing a
+# casual game with friends; paired with an optional second clause this yields
+# hundreds of distinct, human-sounding descriptions — never the same twice in
+# a row, but always clearly "just playing tennis with friends".
+_PURPOSE_LINES = [
+    "Just playing some casual tennis with a few friends.",
+    "Meeting up with friends for a friendly game of tennis.",
+    "Recreational doubles with friends, nothing competitive.",
+    "Getting a relaxed hit in with friends after work.",
+    "Friendly tennis with friends, mostly for the exercise.",
+    "A casual match with friends to enjoy the courts.",
+    "Hitting around with a couple of friends for fun.",
+    "Weekend tennis with friends, just for fun.",
+    "Catching up with friends over a game of tennis.",
+    "Some easygoing tennis with friends.",
+    "Playing a few relaxed sets with friends.",
+    "Friendly rally session with friends.",
+    "Casual game of tennis with friends to stay active.",
+    "Just a low-key tennis outing with friends.",
+    "Getting together with friends for a friendly match.",
+]
+
+_PURPOSE_ADDENDA = [
+    "", "", "", "",  # frequently no second clause
+    " Looking forward to some fresh air.",
+    " Should be a fun, low-key session.",
+    " Just here to rally and have a good time.",
+    " Nothing serious, just enjoying the game.",
+    " Hoping to get a good workout in.",
+    " Always a nice way to unwind.",
+    " Excited to get out on the court.",
+]
+
+
+def build_responses() -> list[dict]:
+    """Build a fresh permit-question response set for one submission.
+
+    The purpose text and player count vary each call so repeated bookings don't
+    look automated; every other answer is fixed and factual. Order matches what
+    RIOC's form posts.
+    """
+    purpose = random.choice(_PURPOSE_LINES) + random.choice(_PURPOSE_ADDENDA)
+    players = str(random.choice([2, 3, 4]))
+    return [
+        {"Id": PURPOSE_FIELD_ID, "StringValue": purpose, "CheckboxValue": []},
+        {"Id": PLAYERS_FIELD_ID, "StringValue": players, "CheckboxValue": []},
+        *_FIXED_RESPONSES,
+    ]
 
 ACTIVITY_TEXT = "Tennis"
 SLOT_MINUTES_DEFAULT = 60
@@ -224,13 +284,19 @@ def find_open_slots(
 # --------------------------------------------------------------------- submit
 
 def submit(s: requests.Session, court: int, start: datetime, stop: datetime,
-           *, activity: str = ACTIVITY_TEXT) -> requests.Response:
-    """POST /Permits. Returns raw Response. HTTP 200 = accepted (verified 2026-05-26)."""
+           *, activity: str = ACTIVITY_TEXT,
+           responses: list[dict] | None = None) -> requests.Response:
+    """POST /Permits. Returns raw Response. HTTP 200 = accepted (verified 2026-05-26).
+
+    By default the permit-question answers are generated fresh per call
+    (build_responses) so repeated bookings vary; pass `responses` to override.
+    """
     event = {"FacilityNames": ["Tennis Courts"],
              "FacilityIds":   [COURTS[court]],
              "Dates": [{"Start": fmt_dt(start), "Stop": fmt_dt(stop)}]}
     payload = {"Activity": activity, "Note": "", "Comments": "",
-               "IsPrivate": False, "Events": [event], "Responses": RESPONSES}
+               "IsPrivate": False, "Events": [event],
+               "Responses": responses if responses is not None else build_responses()}
     return s.post(BASE + "/Permits", data=json.dumps(payload), headers=JSON_HDR)
 
 
