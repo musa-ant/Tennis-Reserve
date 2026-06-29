@@ -8,11 +8,16 @@ for HTTP shapes; both modes import from here.
 Conventions:
   - All functions raise on HTTP/transport errors; callers decide what to do.
   - `submit()` returns the raw `requests.Response`; HTTP 200 means RIOC accepted
-    the permit. (Verified empirically 2026-05-26: 200 = visible in My Permits.)
+    the request on a first-come basis — NOT a guaranteed/un-cancelable permit.
+    Requests submitted outside RIOC's Mon–Fri 8 AM–4 PM window are auto-canceled
+    even after a 200. Check My Permits to confirm a permit actually landed.
   - Times are naive datetimes in America/New_York wall-clock — RIOC expects that.
-  - **Weekly cap: 2 permits per user.** Once you have 2 active permits, every
-    further submit returns HTTP 400 "Bad Request" regardless of court or time.
-    Confirmed in both API and browser UI on 2026-05-26.
+  - **One reservation per player per day** (official RIOC rule, rioc.ny.gov
+    2026-06-29). A second same-day request returns HTTP 400 "Bad Request". The
+    earlier "weekly cap of 2" note was a misread — it was one-per-day combined
+    with the short bookable window. Also: one-hour reservations only (no 2-hour,
+    no half-hour), so a 2-hour session can't be assembled from two same-day
+    permits either. See README.md "Official RIOC rules" for the full list.
 
 Credentials come from ~/.tennis_creds (chmod 600), format:
     RIOC_USER=you@example.com
