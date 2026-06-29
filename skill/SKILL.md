@@ -57,9 +57,12 @@ These are the published rules — they override earlier empirical guesses.
   submissions on weekends. **Before booking, check the current ET time/day and
   warn Musa if the submission falls outside this window** — it will be silently
   canceled even if you see HTTP 200.
-- **Reservations open two days in advance.** The bookable window is short; the
-  server's `get_window` is authoritative (we sometimes observe today+3 rather
-  than today+2 — trust `get_window`, not a hardcoded offset).
+- **Reservations open at most two days in advance.** This published rule is
+  authoritative. The server's window endpoint sometimes reports today+3, but
+  that date is out of policy and gets auto-canceled — never offer it. `get_window`
+  now clamps max_date to `today + rioc.MAX_ADVANCE_DAYS` (2), so from a Monday the
+  furthest bookable day is Wednesday. Just use `find_open_slots(s, window, ...)`;
+  it can't surface an out-of-policy date. Don't compute your own date offset.
 - **Court hours:** first reservation slot 7:00 AM, last slot *starts* 9:00 PM
   (so 9–10 PM is the latest valid slot). Courts open 7 AM–10 PM.
 - **Season:** courts open **April 1 – November 30**; closed in winter. Off-season

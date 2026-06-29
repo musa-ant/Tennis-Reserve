@@ -5,7 +5,7 @@ RIOC CivicPermits:
 
 | Mode | What | When |
 |------|------|------|
-| **Cron** — `tennis_cron.py` | Rigid daily booker. Court 6, today+3 days (defaults to 7–9 PM / 120 min — see caveat, use 60 min). | Runs 8:05 AM ET, weekdays, when the booking window rolls. |
+| **Cron** — `tennis_cron.py` | Rigid daily booker. Court 6, today+2 days, 7–8 PM, 60 min. | Runs 8:05 AM ET, weekdays, when the booking window rolls. |
 | **Skill** — `/tennis` | Conversational. Ask for availability, book ad-hoc slots. | Whenever you want, from any Claude Code session. |
 
 Both modes share `rioc.py` as the single source of truth for HTTP shapes.
@@ -27,19 +27,23 @@ python3 tennis_cron.py [--target-date YYYY-MM-DD] [--court N] [--start HH:MM]
                        [--duration MINUTES] [--dry-run] [--log-path PATH]
 ```
 
-Defaults: Court 6, 19:00, 120 minutes, target = today + 3 days. The
-script attempts a single 2-hour permit; on HTTP 400 it falls back to two
-1-hour permits.
+Defaults: Court 6, 19:00, **60 minutes**, target = **today + 2 days**. The
+script submits one 1-hour permit. (`book_with_fallback` still exists for the
+explicit `--duration 120` case, but see the rules below — a 2-hour session
+can't clear.)
 
-> ⚠️ **The 120-minute default conflicts with the official rules** (see below):
-> RIOC allows one-hour permits only, and one reservation per player per day —
-> so neither the 2-hour permit nor the two-back-to-back-1-hour fallback can
-> actually clear. Run the cron with `--duration 60` for a single 1-hour permit.
-> Also schedule it **weekdays only** (`5 8 * * 1-5`): weekend submissions are
-> auto-canceled by RIOC. The hardcoded today+3 target tracks what the server
-> window actually returns, but RIOC's stated rule is "two days in advance" —
-> trust `get_window`/`window.includes()` to reject out-of-range dates rather
-> than the offset.
+> ⚠️ **Both defaults are now aligned with the official rules** (see below) and
+> enforced in code, not just docs:
+> - **60-minute default.** RIOC allows one-hour permits only, and one
+>   reservation per player per day, so a 2-hour block can't clear. Passing
+>   `--duration 120` is still possible but will fail by policy.
+> - **today+2 target, hard-clamped.** RIOC's rule is "two days in advance."
+>   The server's window endpoint sometimes reports today+3, but those dates are
+>   out of policy and get auto-canceled. `rioc.get_window` now clamps max_date
+>   to `today + MAX_ADVANCE_DAYS` (2), so `find_open_slots` and
+>   `window.includes()` can never surface or accept a today+3 date.
+> - Schedule it **weekdays only** (`5 8 * * 1-5`): weekend submissions are
+>   auto-canceled by RIOC.
 
 Logs append to `~/Library/Logs/tennis_cron.log`. Exit 0 on success, 1
 otherwise.
@@ -129,8 +133,14 @@ These published rules supersede the earlier empirical guesses.
   be in by **3 PM on weekdays**. Monday/Tuesday and holiday reservations are
   submitted on **Fridays**. No weekend submissions. This is why the cron runs
   at 8:05 AM on weekdays.
-- **Reservations open two days in advance.** Trust `get_window` for the exact
-  bookable range rather than a hardcoded offset.
+- **Reservations open at most two days in advance.** This is the authoritative
+  rule. The server's `UseDateRestrictions` endpoint sometimes reports a wider
+  range (today+3), but a request for that out-of-policy date is unreliable and
+  gets auto-canceled — do **not** trust the raw endpoint over this rule.
+  `rioc.get_window` enforces it: max_date is clamped to `today +
+  MAX_ADVANCE_DAYS` (2), so from a Monday the furthest bookable day is
+  Wednesday, never Thursday. To change the limit, edit `MAX_ADVANCE_DAYS` in
+  `rioc.py` — it's the single source of truth.
 - **Court hours:** first slot 7:00 AM, last slot *starts* 9:00 PM; courts open
   7 AM–10 PM. **Season: April 1 – November 30**, closed in winter (window is
   empty off-season).

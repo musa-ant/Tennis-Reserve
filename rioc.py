@@ -18,6 +18,12 @@ Conventions:
     with the short bookable window. Also: one-hour reservations only (no 2-hour,
     no half-hour), so a 2-hour session can't be assembled from two same-day
     permits either. See README.md "Official RIOC rules" for the full list.
+  - **Reservations open at most two days in advance** (official rule). The
+    server's UseDateRestrictions endpoint has been observed returning a *wider*
+    range (today+3); requests for those out-of-policy dates are unreliable and
+    get auto-canceled. `get_window` therefore CLAMPS max_date to today +
+    MAX_ADVANCE_DAYS so the official rule always wins — callers never see, and
+    so can never request, a date beyond policy.
 
 Credentials come from ~/.tennis_creds (chmod 600), format:
     RIOC_USER=you@example.com
@@ -126,6 +132,13 @@ def build_responses() -> list[dict]:
 ACTIVITY_TEXT = "Tennis"
 SLOT_MINUTES_DEFAULT = 60
 
+# Official RIOC rule: reservations open at most this many days in advance.
+# The booking window is clamped to today + MAX_ADVANCE_DAYS regardless of what
+# the server's UseDateRestrictions endpoint reports (it has been seen returning
+# today+3). This is the single source of truth for the advance-booking limit;
+# do not reintroduce a separate hardcoded offset elsewhere.
+MAX_ADVANCE_DAYS = 2
+
 JSON_HDR = {"Content-Type": "application/json; charset=utf-8",
             "X-Requested-With": "XMLHttpRequest"}
 
@@ -214,11 +227,22 @@ class BookingWindow:
         return True
 
 
-def get_window(s: requests.Session) -> BookingWindow:
+def get_window(s: requests.Session, *, today: date | None = None) -> BookingWindow:
+    """Fetch the bookable window, clamped to the official advance-booking rule.
+
+    max_date is capped at ``today + MAX_ADVANCE_DAYS`` even when the server
+    reports a later date — RIOC's published rule is two days in advance, and
+    out-of-policy requests get auto-canceled. Pass ``today`` to override the
+    reference date (tests); defaults to the local (ET) date.
+    """
+    if today is None:
+        today = date.today()
     j = s.get(BASE + "/Permits/UseDateRestrictions").json()
+    server_max = _ms_epoch_to_date(j["MaxDate"])
+    official_max = today + timedelta(days=MAX_ADVANCE_DAYS)
     return BookingWindow(
         min_date=_ms_epoch_to_date(j["MinDate"]),
-        max_date=_ms_epoch_to_date(j["MaxDate"]),
+        max_date=min(server_max, official_max),
         blocked_dates={datetime.fromisoformat(d).date() for d in j.get("Dates", [])},
         weekdays_blocked_mask=j.get("WeekDays", 0),
     )
