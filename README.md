@@ -90,8 +90,16 @@ launchctl load ~/Library/LaunchAgents/com.example.tennis.plist
 
 ## Mode 2: `/tennis` skill
 
-Already installed at `~/.claude/skills/tennis/SKILL.md`. From any Claude
-Code session:
+The skill source lives in this repo at `skill/SKILL.md`. To use it, install
+(copy) it into your Claude Code skills directory:
+
+```bash
+mkdir -p ~/.claude/skills/tennis
+cp skill/SKILL.md ~/.claude/skills/tennis/SKILL.md
+```
+
+The repo copy is the source of truth — edit `skill/SKILL.md` and re-copy.
+Once installed, from any Claude Code session:
 
 ```
 /tennis what's open this week
@@ -100,7 +108,8 @@ Code session:
 ```
 
 The skill loads the library and walks you through availability checks,
-booking confirmation, and result reporting.
+booking confirmation, and result reporting. Note: it's a briefing for the
+agent, not code — the cron (Mode 1) runs entirely without it.
 
 ## Official RIOC rules (rioc.ny.gov, as of 2026-06-29)
 
@@ -161,10 +170,13 @@ nothing more.
 tennis/
 ├── rioc.py            ← shared library (login, is_free, submit, find_open_slots)
 ├── tennis_cron.py     ← rigid daily booker (Mode 1)
+├── skill/
+│   └── SKILL.md       ← /tennis skill source (Mode 2); install to ~/.claude/skills/tennis/
+├── legacy/            ← superseded earlier scripts, kept for reference
 └── README.md          ← this file
 
 ~/.claude/skills/tennis/
-└── SKILL.md           ← /tennis skill (Mode 2)
+└── SKILL.md           ← installed copy of skill/SKILL.md (Mode 2)
 
 ~/.tennis_creds        ← credentials (chmod 600)
 ~/Library/Logs/tennis_cron.log  ← cron output
