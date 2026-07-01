@@ -87,6 +87,16 @@ treat an empty response as "open." It's a binary per-slot yes/no.
 - **Pending vs. approved is unverified.** Unknown whether a submitted-but-pending
   request flips a slot to "conflict," or only an approved one does. Don't claim
   an open slot is contention-free.
+- **A blocked date looks identical to a sellout.** On a date in
+  `window.blocked_dates` (RIOC closes booking for federal holidays), every
+  court/hour returns "not free," so `find_open_slots` yields nothing for that day
+  — indistinguishable from "fully booked" in the table. Before telling Musa a day
+  is sold out (especially if it *just* entered the window), check
+  `date in window.blocked_dates`; if so, it's a **holiday closure, not demand**.
+  Blocked holidays include the observed dates for New Year's, MLK, Presidents',
+  Independence Day, Labor Day, Columbus/Indigenous Peoples', Veterans, Thanksgiving,
+  and Christmas. Note observed shifts: **July 4 2026 falls on a Saturday, so
+  Fri July 3 2026 is the blocked observed holiday.**
 
 ### Cancellation (not in the library)
 
